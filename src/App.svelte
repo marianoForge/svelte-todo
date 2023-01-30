@@ -3,6 +3,9 @@
 	import { v4 as uuid } from 'uuid';
 	import { tick } from 'svelte';
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
+	import spin from './lib/transitions/spin';
+	import fade from './lib/transitions/fade';
 
 	let todoList;
 	let showList = true;
@@ -46,7 +49,7 @@
 		}).then(async (response) => {
 			if (response.ok) {
 				const todo = await response.json();
-				todos = [...todos, { ...todo, id: uuid() }];
+				todos = [{ ...todo, id: uuid() }, ...todos];
 				todoList.clearInput();
 			} else {
 				throw new Error('An error has occurred.');
@@ -101,19 +104,30 @@
 </label>
 
 {#if showList}
-	<div style:max-width="400px">
+	<div style:max-width="800px">
 		<TodoList
 			{todos}
 			{error}
 			{isLoading}
 			{disabledItems}
 			disableAdding={isAdding}
+			scrollOnAdd="top"
 			bind:this={todoList}
 			on:addTodo={handleAddTodo}
 			on:removeTodo={handleRemoveTodo}
 			on:toggleTodo={handleToggleTodo}
+			let:todo
 		/>
 	</div>
+	{#if todos}
+		<p>
+			Number of todos:{#key todos.length}<span
+					style:display="inline-block"
+					in:fly|local={{ y: -10 }}>{todos.length}</span
+				>
+			{/key}
+		</p>
+	{/if}
 {/if}
 
 <style></style>

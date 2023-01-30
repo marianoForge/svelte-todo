@@ -2,10 +2,26 @@
 	import Button from './Button.svelte';
 	import { createEventDispatcher, afterUpdate } from 'svelte';
 	import FaRegTrashAlt from 'svelte-icons/fa/FaRegTrashAlt.svelte';
+	import { scale, crossfade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
 
 	afterUpdate(() => {
-		if (autoScroll) listDiv.scrollTo(0, listDivScrollHeight); //Se ejecuta despues de actualizar el componente
-		autoScroll = false;
+		if (scrollOnAdd) {
+			let pos;
+			if (scrollOnAdd === 'top') pos = 0;
+
+			if (scrollOnAdd === 'bottom') pos = listDivScrollHeight;
+
+			if (autoScroll) listDiv.scrollTo(0, pos); //Se ejecuta despues de actualizar el componente
+			autoScroll = false;
+		}
+	});
+
+	const [send, receive] = crossfade({
+		duration: 400,
+		fallback(node) {
+			return scale(node, { start: 0.5, duration: 300 });
+		}
 	});
 
 	export let todos = null;
@@ -13,6 +29,11 @@
 	export let isLoading = false;
 	export let disableAdding = false;
 	export let disabledItems = [];
+	export let scrollOnAdd = undefined;
+
+	$: done = todos ? todos.filter((todo) => todo.completed) : [];
+	$: todo = todos ? todos.filter((todo) => !todo.completed) : [];
+
 	let prevTodos = todos;
 	let inputText = '';
 	let input, listDiv, autoScroll, listDivScrollHeight;
@@ -21,7 +42,7 @@
 
 	$: {
 		autoScroll = todos && prevTodos && todos.length > prevTodos.length;
-		prevTodos = todos; //Se ejecuta cuando cambia la propiedad todos
+		prevTodos = todos; // Se ejecuta cuando cambia la propiedad todos
 	}
 
 	export function clearInput() {
@@ -58,34 +79,52 @@
 				{#if todos.length === 0}
 					<p class="state-text">No todos Yet</p>
 				{:else}
-					<ul>
-						{#each todos as { id, title, completed } (id)}
-							<li class:completed>
-								<label>
-									<input
-										disabled={disabledItems.includes(id)}
-										on:input={(e) => {
-											e.currentTarget.checked = completed; //Forzando a que no cambie el estado
-											handleToggleTodo(id, !completed); //Dispatch de evento
-										}}
-										type="checkbox"
-										checked={completed}
-									/>
-									{title}
-								</label>
-								<button
-									class="remove-todo-button"
-									aria-label="Remove Todo: {title}"
-									disabled={disabledItems.includes(id)}
-									on:click={() => handleRemoveTodo(id)}
-								>
-									<span style:width="10px" style:display="inline-block"
-										><FaRegTrashAlt /></span
-									>
-								</button>
-							</li>
+					<div style:display="flex">
+						{#each [todo, done] as list, index}
+							<div class="list-wrapper">
+								<h2>{index === 0 ? 'Todos' : 'Done'}</h2>
+								<ul>
+									{#each list as todo (todo.id)}
+										{@const { id, title, completed } = todo}
+										<li animate:flip={{ duration: 300 }}>
+											<slot {todo}>
+												<div
+													in:receive|local={{ key: id }}
+													out:send|local={{ key: id }}
+													class:completed
+												>
+													<label>
+														<input
+															disabled={disabledItems.includes(id)}
+															on:input={(e) => {
+																e.currentTarget.checked = completed; //Forzando a que no cambie el estado
+																handleToggleTodo(id, !completed); //Dispatch de evento
+															}}
+															type="checkbox"
+															checked={completed}
+														/>
+														{title}
+													</label>
+													<button
+														class="remove-todo-button"
+														aria-label="Remove Todo: {title}"
+														disabled={disabledItems.includes(id)}
+														on:click={() => handleRemoveTodo(id)}
+													>
+														<span
+															style:width="10px"
+															style:display="inline-block"
+															><FaRegTrashAlt /></span
+														>
+													</button>
+												</div>
+											</slot>
+										</li>
+									{/each}
+								</ul>
+							</div>
 						{/each}
-					</ul>
+					</div>
 				{/if}
 			</div>
 		</div>
@@ -119,14 +158,21 @@
 			color: var(--buttonTextColor);
 		}
 		.todo-list {
-			max-height: 200px;
+			max-height: 400px;
 			overflow: auto;
 			color: var(--buttonTextColor);
+			.list-wrapper {
+				padding: 10px;
+				flex: 1;
+				h2 {
+					margin: 0 0 10px 0;
+				}
+			}
 			ul {
 				margin: 0;
-				padding: 10px;
+				padding: 0;
 				list-style: none;
-				li {
+				li > div {
 					margin-bottom: 5px;
 					display: flex;
 					align-items: center;

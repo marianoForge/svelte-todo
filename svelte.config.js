@@ -1,7 +1,7 @@
-import sveltePreprocess from 'svelte-preprocess';
+import preprocess from 'svelte-preprocess';
 
 const config = {
-	preprocess: sveltePreprocess()
+	preprocess: preprocess()
 };
 
 export default config;
